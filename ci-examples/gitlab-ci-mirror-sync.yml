@@ -1,0 +1,32 @@
+# SKETCH: nightly Confluence mirror sync via GitLab CI scheduled pipeline.
+# Lives in ci-examples/ so it does NOT run in the template repo.
+# To activate in your team fork: merge into your .gitlab-ci.yml and create a
+# pipeline schedule (CI/CD > Schedules, e.g. daily 06:30).
+#
+# CI/CD variables required (Settings > CI/CD > Variables, masked):
+#   CONFLUENCE_URL, CONFLUENCE_USERNAME, CONFLUENCE_API_TOKEN,
+#   CONFLUENCE_SPACE_URL
+#   GIT_PUSH_TOKEN   project access token with write_repository scope
+#
+# Security: use a dedicated service account scoped to only the spaces this
+# repo's audience is entitled to read. See README "Security model".
+
+mirror-sync:
+  image: python:3.12-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git curl
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv tool install confluence-markdown-exporter
+  script:
+    # ADAPT: populate cme's config file from CI variables before exporting.
+    # Check the exporter README for the current config location/format.
+    - echo "Write cme config from CI variables here (see exporter README)." && exit 1
+    - cme spaces "$CONFLUENCE_SPACE_URL"
+    - git config user.name "mirror-sync-bot"
+    - git config user.email "mirror-sync-bot@example.invalid"
+    - git add confluence-mirror
+    - git diff --cached --quiet || git commit -m "chore(mirror): nightly confluence sync"
+    - git push "https://oauth2:${GIT_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:${CI_DEFAULT_BRANCH}"

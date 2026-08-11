@@ -1,0 +1,46 @@
+{
+  // Project-level opencode config. Loaded automatically for anyone who runs
+  // `opencode` from this repo. Schema: https://opencode.ai/config.json
+  "$schema": "https://opencode.ai/config.json",
+
+  // Default model for daily retrieval/answer loops. Pick a cheap tier; the
+  // vault does the heavy lifting, not the model.
+  "model": "openai/gpt-5.6-luna",
+
+  "mcp": {
+    // Basic Memory: hybrid search + knowledge graph over the whole vault
+    // (mirror + notes). Core retrieval path, enabled everywhere.
+    "basic-memory": {
+      "type": "local",
+      "command": ["uvx", "basic-memory", "mcp"],
+      "enabled": true
+    },
+
+    // Atlassian remote MCP (Cloud only). Used for writes and fresh
+    // point-reads. OAuth: run `opencode mcp auth atlassian` once.
+    "atlassian": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/sse",
+      "enabled": true,
+      "oauth": {}
+    }
+  },
+
+  // The Atlassian server ships many tool schemas and they cost tokens on
+  // every prompt. Disabled globally; only the confluence-writer agent pays.
+  "tools": {
+    "atlassian*": false
+  },
+
+  "agent": {
+    // Explicit agent for Confluence writes and synthesis jobs. Uses a
+    // stronger model tier: writes are rarer and worth the spend.
+    "confluence-writer": {
+      "description": "Creates and updates Confluence pages via the Atlassian MCP. Use for any write-back to the wiki.",
+      "model": "openai/gpt-5.6-terra",
+      "tools": {
+        "atlassian*": true
+      }
+    }
+  }
+}

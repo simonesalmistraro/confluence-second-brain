@@ -1,0 +1,58 @@
+# SKETCH: nightly Confluence mirror sync via GitHub Actions.
+# Lives in ci-examples/ so it does NOT run in the template repo.
+# To activate in your team fork: copy to .github/workflows/mirror-sync.yml
+# and adapt the marked steps.
+#
+# Secrets required (repo Settings > Secrets):
+#   CONFLUENCE_URL        e.g. https://<yoursite>.atlassian.net
+#   CONFLUENCE_USERNAME   service account email (least-privilege account!)
+#   CONFLUENCE_API_TOKEN  service account API token
+#   CONFLUENCE_SPACE_URL  e.g. https://<yoursite>.atlassian.net/wiki/spaces/<KEY>
+#
+# Security: use a dedicated service account scoped to only the spaces this
+# repo's audience is entitled to read. See README "Security model".
+
+name: mirror-sync
+on:
+  schedule:
+    - cron: "30 6 * * *"   # nightly, UTC
+  workflow_dispatch: {}     # manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install exporter
+        run: uv tool install confluence-markdown-exporter
+
+      # ADAPT: cme stores auth in its own config file. Populate it from
+      # secrets before exporting. Check the exporter README for the current
+      # config file location/format for your cme version, then write it here.
+      - name: Configure exporter auth
+        env:
+          CONFLUENCE_URL: ${{ secrets.CONFLUENCE_URL }}
+          CONFLUENCE_USERNAME: ${{ secrets.CONFLUENCE_USERNAME }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+        run: |
+          echo "Write cme config from env vars here (see exporter README)."
+          exit 1  # remove once implemented
+
+      - name: Export space
+        env:
+          CONFLUENCE_SPACE_URL: ${{ secrets.CONFLUENCE_SPACE_URL }}
+        run: cme spaces "$CONFLUENCE_SPACE_URL"
+
+      - name: Commit and push mirror
+        run: |
+          git config user.name "mirror-sync-bot"
+          git config user.email "mirror-sync-bot@users.noreply.github.com"
+          git add confluence-mirror
+          git diff --cached --quiet || git commit -m "chore(mirror): nightly confluence sync"
+          git push

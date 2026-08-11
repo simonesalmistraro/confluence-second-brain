@@ -1,0 +1,13 @@
+# Secrets and local state. Never commit tokens.
+*.env
+.env*
+sync.log
+*.log
+
+# Basic Memory derived index (rebuilt locally from markdown)
+memory.db
+.basic-memory/
+
+# OS noise
+.DS_Store
+Thumbs.db
