@@ -4,9 +4,14 @@
 # pipeline schedule (CI/CD > Schedules, e.g. daily 06:30).
 #
 # CI/CD variables required (Settings > CI/CD > Variables, masked):
-#   CONFLUENCE_URL, CONFLUENCE_USERNAME, CONFLUENCE_API_TOKEN,
-#   CONFLUENCE_SPACE_URL
+#   CONFLUENCE_URL, CONFLUENCE_SPACE_URL
+#   Cloud:      CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN
+#   Server/DC:  CONFLUENCE_PAT   (and CONFLUENCE_URL must include the context
+#               path, e.g. https://wiki.example.com/confluence)
 #   GIT_PUSH_TOKEN   project access token with write_repository scope
+#
+# Server/DC: a self-hosted wiki is usually unreachable from shared runners.
+# Expect to need a runner inside the network.
 #
 # Security: use a dedicated service account scoped to only the spaces this
 # repo's audience is entitled to read. See README "Security model".

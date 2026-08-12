@@ -19,10 +19,14 @@ if you ever prove you need it.
                                                                   ▼
   opencode ── opencode.jsonc (auto-loaded) ── Basic Memory MCP ── vault
       │                                                           ▲
-      └── confluence-writer agent ── Atlassian remote MCP ── writes back to Confluence
+      └── confluence-writer agent ── Atlassian MCP ── writes back to Confluence
                                                                   │
   notes/ ◄── team knowledge, written by humans and agents ────────┘
 ```
+
+Works against **Confluence Cloud and Confluence Server/Data Center 6.0+**.
+See [Cloud vs Server/Data Center](#cloud-vs-serverdata-center) — it changes
+which credentials you need and the shape of every URL.
 
 Two content layers:
 
@@ -38,13 +42,49 @@ Two content layers:
    - Windows: `powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1`
    - Linux/macOS: `bash scripts/bootstrap.sh`
 3. Authenticate your model provider: `opencode auth login`
-4. Start working: run `opencode` from the repo root. The project-level
+4. (Optional, for Confluence writes and fresh point-reads) set your Confluence
+   credentials as environment variables. Copy `scripts/env.example.sh`, fill in
+   the block matching your deployment, keep the filled copy outside the repo,
+   and source it from your shell profile.
+5. Start working: run `opencode` from the repo root. The project-level
    `opencode.jsonc` wires up Basic Memory and the Atlassian MCP automatically.
-5. (Optional, for Confluence writes) authorize the Atlassian remote MCP:
-   `opencode mcp auth atlassian`
 
-That is the entire per-developer footprint: clone, bootstrap, one API key,
-one optional OAuth. Everything else rides in through `git pull`.
+That is the entire per-developer footprint: clone, bootstrap, one API key, one
+optional Confluence token. Everything else rides in through `git pull`.
+
+## Cloud vs Server/Data Center
+
+The Atlassian MCP server used here
+([mcp-atlassian](https://github.com/sooperset/mcp-atlassian)) runs locally via
+`uvx` and speaks both deployments. Nothing in `opencode.jsonc` needs editing —
+the env vars you export decide which auth path is used.
+
+|                  | Cloud                                          | Server / Data Center 6.0+                       |
+|------------------|------------------------------------------------|-------------------------------------------------|
+| `CONFLUENCE_URL` | `https://yoursite.atlassian.net`               | `https://wiki.example.com/confluence` — **include the context path** |
+| Credential       | `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN` | `CONFLUENCE_PAT` (Personal Access Token)        |
+| Where to get it  | id.atlassian.com → API tokens                  | Confluence profile → Personal Access Tokens      |
+| Space URL        | `.../wiki/spaces/<KEY>`                        | `.../confluence/display/<KEY>`                   |
+| `cme` auth field | `username` + `api_token`                       | `pat`                                            |
+
+Server/DC notes:
+
+- **The context path is the most common misconfiguration.** If your wiki lives
+  at `https://wiki.example.com/confluence/display/ENG`, then `CONFLUENCE_URL` is
+  `https://wiki.example.com/confluence`, not the bare host. A bare host returns
+  redirects that look like auth failures.
+- **PATs bypass SSO by design.** If your instance is behind SAML/OIDC, that is
+  the point of a PAT — but it also means the token is a full standing
+  credential with your entire read scope, not a scoped app grant. Treat it as
+  password-grade, set an expiry, and revoke it when you change teams.
+- Older instances (pre-7.9) have no PAT support. Check profile → Personal
+  Access Tokens; if the page is missing, talk to your Confluence admin rather
+  than falling back to your own password.
+- Atlassian's hosted remote MCP (`https://mcp.atlassian.com/v1/sse`) is
+  **Cloud-only** and will never reach a self-hosted instance. If you are on
+  Cloud and prefer it, swap the `atlassian` entry for
+  `{"type": "remote", "url": "https://mcp.atlassian.com/v1/sse", "oauth": {}}`
+  and run `opencode mcp auth atlassian`.
 
 ## Mirror sync (one maintainer, or CI)
 
@@ -58,7 +98,7 @@ service account and commits the result. Developers only pull. See
 **Fallback: manual sync.** Any one person runs it locally:
 
 ```sh
-# one-time auth setup (URL, username, API token)
+# one-time auth setup: URL, then username + api_token (Cloud) or pat (Server/DC)
 cme config edit auth.confluence
 # point output at the mirror folder
 cme config edit export.output_path
@@ -68,8 +108,15 @@ scripts/sync.ps1        # Windows
 scripts/sync.sh         # Linux/macOS
 ```
 
-Set `CONFLUENCE_SPACE_URL` in your environment first, e.g.
-`https://<yoursite>.atlassian.net/wiki/spaces/<SPACEKEY>`.
+`cme` keys credentials by URL internally, so they cannot be passed as flat env
+vars — they must go through `cme config edit`.
+
+Set `CONFLUENCE_SPACE_URL` in your environment first:
+
+- Cloud: `https://<yoursite>.atlassian.net/wiki/spaces/<SPACEKEY>`
+- Server/DC: `https://<host>/<contextpath>/display/<SPACEKEY>`
+
+Export one small space and inspect the output before scheduling anything.
 
 ## Security model. Read this before you share anything.
 
@@ -87,7 +134,16 @@ the exporting account can read, and repo access replaces per-page permissions.
   remote. Check where a remote points before you push.
 - **Tokens live in environment variables, OS credential stores, or CI secrets.**
   Never in the vault, the config files in this repo, or a commit. `.gitignore`
-  already covers `*.env` and sync logs; keep it that way.
+  already covers `*.env` and sync logs; keep it that way. This is why
+  `opencode.jsonc` reads every credential through `{env:...}` and contains no
+  literal values.
+- **Internal hostnames are also disclosure.** On Server/Data Center the wiki
+  URL is usually internal infrastructure. Keep it in your environment, not in a
+  committed config — especially if your fork of this template is public.
+- **A Server/DC PAT inherits your full read scope.** It is not a scoped app
+  grant, and it bypasses SSO. Anything the mirror job can read, the token
+  holder can read. Use a least-privilege service account for shared mirrors,
+  set token expiry, and revoke on role change.
 - **Model endpoint is data egress.** Sending wiki content to an LLM API is an
   export of company data. Confirm which endpoint is sanctioned by your
   organization (direct API, cloud tenant, internal gateway) in writing before
@@ -122,6 +178,7 @@ confluence-mirror/        read-only nightly export (empty in this template)
 notes/                    writable team knowledge base
 scripts/bootstrap.ps1     per-developer setup, Windows
 scripts/bootstrap.sh      per-developer setup, Linux/macOS
+scripts/env.example.sh    Confluence credential template (copy outside the repo)
 scripts/sync.ps1          mirror export + commit, Windows
 scripts/sync.sh           mirror export + commit, Linux/macOS
 ci-examples/              scheduled central sync sketches (GitHub Actions, GitLab CI)

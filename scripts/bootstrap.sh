@@ -45,8 +45,13 @@ uv tool install confluence-markdown-exporter
 cat <<'EOF'
 
 Bootstrap done. Remaining manual steps:
-  1. opencode auth login          (your model provider API key)
-  2. opencode mcp auth atlassian  (optional, only for Confluence writes)
+  1. opencode auth login   (your model provider API key)
+  2. Confluence credentials, only needed for writes and fresh point-reads:
+     cp scripts/env.example.sh ~/.confluence-brain.env
+     then fill it in and source it from your shell profile.
+       Cloud      CONFLUENCE_URL + CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN
+       Server/DC  CONFLUENCE_URL + CONFLUENCE_PAT
+     The Atlassian MCP server is fetched on demand by uvx; nothing to install.
   3. If you run mirror syncs locally: cme config edit auth.confluence
      and set CONFLUENCE_SPACE_URL in your environment.
 EOF

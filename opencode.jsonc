@@ -16,13 +16,33 @@
       "enabled": true
     },
 
-    // Atlassian remote MCP (Cloud only). Used for writes and fresh
-    // point-reads. OAuth: run `opencode mcp auth atlassian` once.
+    // Atlassian MCP (github.com/sooperset/mcp-atlassian), run locally. Used
+    // for writes and fresh point-reads.
+    //
+    // Handles BOTH Confluence Cloud and Server/Data Center 6.0+. The
+    // deployment is chosen by which env vars you export, not by this file:
+    //   Cloud      CONFLUENCE_URL + CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN
+    //   Server/DC  CONFLUENCE_URL + CONFLUENCE_PAT   (Personal Access Token)
+    // Vars for the other deployment stay empty and are ignored.
+    //
+    // Server/DC: CONFLUENCE_URL must include the context path if your instance
+    // has one, e.g. https://wiki.example.com/confluence
+    //
+    // Never inline a token or a hostname here — this file is committed.
+    // See scripts/env.example.sh.
     "atlassian": {
-      "type": "remote",
-      "url": "https://mcp.atlassian.com/v1/sse",
-      "enabled": true,
-      "oauth": {}
+      "type": "local",
+      "command": ["uvx", "mcp-atlassian"],
+      "environment": {
+        "CONFLUENCE_URL": "{env:CONFLUENCE_URL}",
+        "CONFLUENCE_USERNAME": "{env:CONFLUENCE_USERNAME}",
+        "CONFLUENCE_API_TOKEN": "{env:CONFLUENCE_API_TOKEN}",
+        "CONFLUENCE_PERSONAL_TOKEN": "{env:CONFLUENCE_PAT}",
+        "CONFLUENCE_SPACES_FILTER": "{env:CONFLUENCE_SPACES}"
+      },
+      // First run resolves the package via uvx, which blows past the 5s default.
+      "timeout": 60000,
+      "enabled": true
     }
   },
 

@@ -29,8 +29,14 @@ writable team notes layer, indexed by Basic Memory.
 
 ## Troubleshooting
 
-- MCP server failing: `opencode mcp debug <name>`, then re-auth with
-  `opencode mcp auth <name>` (OAuth tokens expire silently).
+- MCP server failing: `opencode mcp debug <name>`. The Atlassian server is a
+  local process authenticated by environment variables, not OAuth — if it fails,
+  the shell running `opencode` is almost always missing `CONFLUENCE_URL` and the
+  matching credential (`CONFLUENCE_PAT` on Server/Data Center,
+  `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN` on Cloud).
+- Atlassian calls returning redirects or 401 on Server/Data Center: check that
+  `CONFLUENCE_URL` includes the instance context path (e.g. `/confluence`), and
+  that the Personal Access Token has not expired.
 - Mirror looks stale: check the scheduled sync job before assuming pages moved.
 - Search misses on vocabulary mismatch: try grep with synonyms across the
   mirror before concluding the knowledge is absent.
