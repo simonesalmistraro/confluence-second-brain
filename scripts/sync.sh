@@ -20,6 +20,19 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 #   Server/DC  https://<host>/<contextpath>/display/<SPACEKEY>
 : "${CONFLUENCE_SPACE_URL:?Set CONFLUENCE_SPACE_URL — Cloud: https://<yoursite>.atlassian.net/wiki/spaces/<KEY>, Server/DC: https://<host>/confluence/display/<KEY>}"
 
+# Windows MAX_PATH safety (260-char TOTAL-path limit), asserted on every export so
+# the committed mirror can never carry a path that breaks `git checkout` on Windows.
+# The fix is flat layout (depth 1) — Confluence's ancestor breadcrumb is what blows
+# the limit, not any single name. {page_id} keeps filenames unique even after the
+# length cap truncates a long title, so truncation only ever costs readability.
+# filename_length=150 leaves headroom under 260 for a deepish clone path; see
+# README "Windows path safety" for the budget. These are cme global config, but a
+# Windows-safe layout is a strictly-better default for this dedicated vault.
+cme config set export.page_path='{space_name}/{page_id}_{page_title}.md'
+cme config set export.attachment_path='{space_name}/attachments/{attachment_file_id}{attachment_extension}'
+cme config set export.filename_length=150
+cme config set 'export.filename_encoding={"<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"}'
+
 echo "==> Exporting $CONFLUENCE_SPACE_URL"
 cme spaces "$CONFLUENCE_SPACE_URL"
 

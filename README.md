@@ -118,6 +118,39 @@ Set `CONFLUENCE_SPACE_URL` in your environment first:
 
 Export one small space and inspect the output before scheduling anything.
 
+### Windows path safety
+
+Windows caps a **whole path** at 260 characters (`MAX_PATH`). Confluence's default
+export nests each page under its full ancestor breadcrumb, so a deep tree with
+long titles produces paths well over 260 — and `git checkout` on Windows then
+fails with `Filename too long`, breaking the clone for every Windows dev.
+
+This is fixed **at export**, not per-developer. `scripts/sync.*` assert a flat,
+Windows-safe layout on every run (self-healing against config drift):
+
+```sh
+cme config set export.page_path='{space_name}/{page_id}_{page_title}.md'
+cme config set export.attachment_path='{space_name}/attachments/{attachment_file_id}{attachment_extension}'
+cme config set export.filename_length=150
+cme config set 'export.filename_encoding={"<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"}'
+```
+
+- **Flat layout (depth 1)** is the real fix — the ancestor breadcrumb is what blows
+  `MAX_PATH`, not any single filename. `{page_id}` prefix keeps files unique, so
+  two pages with the same title never collide.
+- **`filename_length=150`** is a belt, not the fix: it caps one filename component
+  (default is 255, the NTFS per-name limit — it never bounds total path). The
+  budget: `260 − clone_prefix − space_name − separators`. 150 survives a deepish
+  clone like `C:\Users\me\Documents\repos\confluence-second-brain\`. Because
+  `{page_id}` guarantees uniqueness, truncation only costs readability, never
+  correctness — so shorten further if your clone path is deep, or raise it if
+  it's short (`C:\csb\`).
+- **`filename_encoding`** maps Windows-forbidden characters (`< > : " / \ | ? *`)
+  so titles containing them don't produce illegal filenames.
+
+No `LongPathsEnabled` registry edit or `git config core.longpaths` is required on
+any machine — the mirror is safe by construction.
+
 ## Security model. Read this before you share anything.
 
 A markdown mirror **flattens Confluence ACLs**. The export contains every page

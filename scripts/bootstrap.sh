@@ -42,6 +42,15 @@ basic-memory project add main "$REPO_ROOT"
 echo "==> Installing confluence-markdown-exporter"
 uv tool install confluence-markdown-exporter
 
+# Windows MAX_PATH-safe export layout (flat, depth 1). sync.* re-asserts this on
+# every run; setting it here means even manual `cme` reads use the safe layout.
+# See README "Windows path safety" for the rationale and the filename_length budget.
+echo "==> Applying Windows-safe cme export layout"
+cme config set export.page_path='{space_name}/{page_id}_{page_title}.md'
+cme config set export.attachment_path='{space_name}/attachments/{attachment_file_id}{attachment_extension}'
+cme config set export.filename_length=150
+cme config set 'export.filename_encoding={"<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"}'
+
 cat <<'EOF'
 
 Bootstrap done. Remaining manual steps:
