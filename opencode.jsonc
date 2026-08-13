@@ -10,9 +10,12 @@
   "mcp": {
     // Basic Memory: hybrid search + knowledge graph over the whole vault
     // (mirror + notes). Core retrieval path, enabled everywhere.
+    // --project pins the repo vault (bootstrap registers this name), so retrieval
+    // never depends on the machine's global default project. basic-memory reserves
+    // 'main' for its own data dir, which is why we use a dedicated name here.
     "basic-memory": {
       "type": "local",
-      "command": ["uvx", "basic-memory", "mcp"],
+      "command": ["uvx", "basic-memory", "mcp", "--project", "confluence-second-brain"],
       "enabled": true
     },
 

@@ -36,11 +36,23 @@ if (-not (Test-Command "opencode")) {
     Write-Host "==> opencode already installed: $(opencode --version)"
 }
 
-# 3. Basic Memory + register this repo as the vault
+# 3. Basic Memory + register this repo as the vault.
+# basic-memory reserves a 'main' project at install time pointing at its own data
+# dir, so `project add main <repo>` fails with "already exists with different path".
+# Register the repo under a dedicated project name instead (idempotent on re-run)
+# and make it the default. opencode.jsonc pins this same project on the MCP, so
+# retrieval targets the repo vault regardless of the machine's global default.
+$BmProject = "confluence-second-brain"
 Write-Host "==> Installing basic-memory"
 uv tool install basic-memory
-Write-Host "==> Registering vault project"
-basic-memory project add main $RepoRoot
+Write-Host "==> Registering vault project '$BmProject'"
+$bmProjects = (basic-memory project list 2>$null | Out-String)
+if ($bmProjects -match [regex]::Escape($BmProject)) {
+    Write-Host "==> Project '$BmProject' already registered; skipping add"
+} else {
+    basic-memory project add $BmProject $RepoRoot
+}
+basic-memory project default $BmProject
 
 # 4. Confluence exporter (only needed if you run syncs locally; harmless otherwise)
 Write-Host "==> Installing confluence-markdown-exporter"

@@ -32,11 +32,22 @@ else
     echo "==> opencode already installed: $(opencode --version)"
 fi
 
-# 3. Basic Memory + register this repo as the vault
+# 3. Basic Memory + register this repo as the vault.
+# basic-memory reserves a 'main' project at install time pointing at its own data
+# dir, so `project add main <repo>` fails with "already exists with different path".
+# Register the repo under a dedicated project name instead (idempotent on re-run)
+# and make it the default. opencode.jsonc pins this same project on the MCP, so
+# retrieval targets the repo vault regardless of the machine's global default.
+BM_PROJECT="confluence-second-brain"
 echo "==> Installing basic-memory"
 uv tool install basic-memory
-echo "==> Registering vault project"
-basic-memory project add main "$REPO_ROOT"
+echo "==> Registering vault project '$BM_PROJECT'"
+if basic-memory project list 2>/dev/null | grep -q "$BM_PROJECT"; then
+    echo "==> Project '$BM_PROJECT' already registered; skipping add"
+else
+    basic-memory project add "$BM_PROJECT" "$REPO_ROOT"
+fi
+basic-memory project default "$BM_PROJECT"
 
 # 4. Confluence exporter (only needed if you run syncs locally; harmless otherwise)
 echo "==> Installing confluence-markdown-exporter"
