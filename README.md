@@ -132,7 +132,9 @@ Windows-safe layout on every run (self-healing against config drift):
 cme config set export.page_path='{space_name}/{page_id}_{page_title}.md'
 cme config set export.attachment_path='{space_name}/attachments/{attachment_file_id}{attachment_extension}'
 cme config set export.filename_length=150
-cme config set 'export.filename_encoding={"<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"}'
+# NOTE: no surrounding braces — cme wraps the value in {} itself before json.loads.
+# Passing {...} double-wraps, fails to parse, and silently disables ALL sanitization.
+cme config set 'export.filename_encoding="<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"'
 ```
 
 - **Flat layout (depth 1)** is the real fix — the ancestor breadcrumb is what blows

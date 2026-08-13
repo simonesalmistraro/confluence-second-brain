@@ -31,7 +31,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cme config set export.page_path='{space_name}/{page_id}_{page_title}.md'
 cme config set export.attachment_path='{space_name}/attachments/{attachment_file_id}{attachment_extension}'
 cme config set export.filename_length=150
-cme config set 'export.filename_encoding={"<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"}'
+# NOTE: cme's parse_encode_setting wraps this value in {} itself before json.loads,
+# so the value must NOT include braces — passing {...} double-wraps, fails to parse,
+# and silently yields an EMPTY map (no sanitization → forbidden chars like > survive).
+cme config set 'export.filename_encoding="<":"_",">":"_",":":"_","\"":"_","/":"_","\\":"_","|":"_","?":"_","*":"_"'
 
 echo "==> Exporting $CONFLUENCE_SPACE_URL"
 cme spaces "$CONFLUENCE_SPACE_URL"
